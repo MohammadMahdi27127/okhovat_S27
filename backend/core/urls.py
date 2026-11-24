@@ -1,5 +1,7 @@
 from django.urls import path
 from . import views as v
+from . import landing_api as la
+
 urlpatterns = [
     path("admin/members/<str:code>/roles/", v.roles),
     path("members/<str:code>/", v.member_profile), path("rankings/", v.rankings),
@@ -17,4 +19,10 @@ urlpatterns = [
     path("forms/", v.forms), path("forms/<str:fid>/answers/", v.form_answers),
     path("admin/members/", v.register), path("admin/members/<str:code>/suspend/", v.suspend),
     path("admin/reports/", v.weekly), path("health/", v.health),
+    # New landing cards & member titles
+    path("landing/cards/", la.landing_cards),
+    path("landing/card/", la.manage_landing_card),
+    path("landing/titles/", la.landing_titles),
+    path("landing/titles/add/", la.add_title),
+    path("landing/titles/<str:tid>/", la.remove_title),
 ]
