@@ -103,6 +103,7 @@ MEDIA_ROOT = Path(env("UPLOADS_DIR", default=str(BASE_DIR / "private-media")))
 AVATARS_DIR = Path(env("AVATARS_DIR", default="/data/avatars"))
 POSTS_DIR = Path(env("POSTS_DIR", default="/data/posts"))
 SKILLS_DIR = Path(env("SKILLS_DIR", default="/data/skills"))
+LANDING_DIR = Path(env("LANDING_DIR", default="/data/landing"))
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 FRONTEND_ROOT = BASE_DIR.parent / "frontend" / "dist"
