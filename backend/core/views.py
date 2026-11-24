@@ -294,7 +294,8 @@ def vote(request, pid, kind):
         raise ValidationError("واکنش معتبر نیست.")
     active = validated(s.ToggleInput, request)["active"]
     with transaction.atomic():
-        post = get_object_or_404(visible_posts().select_for_update(), pk=pid)
+        # Lock only ok_posts: visible_posts() LEFT JOINs ok_removed_posts, and Postgres rejects plain FOR UPDATE on the nullable side of an outer join (0A000).
+        post = get_object_or_404(visible_posts().select_for_update(of=("self",)), pk=pid)
         params = {"post": post, "actor": request.user, "kind": kind}
         if active:
             _, created = m.Vote.objects.get_or_create(**params)
@@ -322,7 +323,8 @@ def comments(request, pid):
     if data.get("parent"):
         parent = get_object_or_404(m.Comment, pk=data["parent"], post=post, parent__isnull=True)
     with transaction.atomic():
-        post = get_object_or_404(visible_posts().select_for_update(), pk=pid)
+        # Lock only ok_posts: visible_posts() LEFT JOINs ok_removed_posts, and Postgres rejects plain FOR UPDATE on the nullable side of an outer join (0A000).
+        post = get_object_or_404(visible_posts().select_for_update(of=("self",)), pk=pid)
         item = m.Comment.objects.create(post=post, actor=request.user, parent=parent, body=data["text"])
         announce(request.user, "comment", post.actor_id)
     return Response({"id": item.pk}, status=201)
