@@ -69,7 +69,7 @@ SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SAMESITE = "Lax"
-SECURE_SSL_REDIRECT = not DEBUG
+SECURE_SSL_REDIRECT = False
 # Internal readiness probes must work over HTTP without redirecting to HTTPS.
 # All application pages and other API routes retain HTTPS enforcement.
 SECURE_REDIRECT_EXEMPT = [r"^api/health/$"]
