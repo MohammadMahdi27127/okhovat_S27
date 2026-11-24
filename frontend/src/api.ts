@@ -16,6 +16,15 @@ export type Post = {
   location?: string; ring?: string; group?: string; people?: string[];
 };
 export type Form = { id: string; title: string; team: string; questions: string[] };
+export type LandingCard = {
+  id: string; team: string; card_type: string; title: string; body: string;
+  meeting_at: string | null; image: string | null; html_file: string | null;
+  updated: string; author_name: string;
+};
+export type MemberTitle = {
+  id: string; actor_code: string; actor_name: string; kind: string; team: string;
+  week_start: string; wanted_poster: string | null; created: string;
+};
 export type AppState = {
   growth: Growth[]; stats: { posts: number; growth: number; followers: number; following: number };
   following: string[]; preferences: { avatar?: string; personalStatus?: { sportPlan: string; currentBook: string } };
@@ -47,7 +56,8 @@ export async function api<T>(path: string, method = 'GET', body?: unknown): Prom
 }
 export async function upload(file: File | undefined, purpose: string) {
   if (!file?.size) return null;
-  if (file.size > 10 * 1024 * 1024) throw new Error('حداکثر حجم فایل ۱۰ مگابایت است.');
+  const limit = purpose === 'landing' ? 1 * 1024 * 1024 : 10 * 1024 * 1024;
+  if (file.size > limit) throw new Error(purpose === 'landing' ? 'حداکثر حجم فایل ۱ مگابایت است.' : 'حداکثر حجم فایل ۱۰ مگابایت است.');
   const form = new FormData();
   form.append('file', file);
   return api<{ url: string; medium: string }>('files/upload/' + purpose + '/', 'POST', form);

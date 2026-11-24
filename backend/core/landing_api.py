@@ -177,6 +177,8 @@ def landing_titles(request):
     week = request.query_params.get("week")
     if week:
         qs = qs.filter(week_start=week)
+    elif request.query_params.get("all"):
+        pass  # کل تاریخچه: برای محاسبهٔ تعداد دفعات قبلی
     else:
         # default: current week
         qs = qs.filter(week_start=week_start_for())

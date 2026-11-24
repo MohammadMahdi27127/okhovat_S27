@@ -104,6 +104,8 @@ class SecurityHeaders:
             "frame-ancestors 'none'; form-action 'self'"
         )
         if request.path.startswith("/api/files/") and response.status_code == 200:
+            # کارت‌های HTML لندینگ باید در iframe همان دامنه قابل نمایش باشند.
+            response["X-Frame-Options"] = "SAMEORIGIN"
             response["Content-Security-Policy"] = "sandbox; default-src 'none'"
         if request.path.startswith("/api/"):
             response["Cache-Control"] = "no-store, private"
