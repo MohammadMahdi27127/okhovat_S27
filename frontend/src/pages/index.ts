@@ -1,0 +1,10 @@
+export { HomePage } from './Home';
+export { LoginPage, ForgotPage } from './Auth';
+export { ProfilePage } from './Profile';
+export { GrowthPage } from './Growth';
+export { NewPostPage } from './NewPost';
+export { PostsPage } from './Posts';
+export { ChatPage } from './Chat';
+export { NotificationsPage } from './Notifications';
+export { CoachPage } from './Coach';
+export { AdminPage } from './Admin';

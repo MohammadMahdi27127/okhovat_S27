@@ -1,0 +1,16 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+frontend/dist/
+backend/staticfiles/
+backend/private-media/
+*.log
+*.tsbuildinfo
+.env.*
+!.env.example
+*.pem
+*.key
+*service-account*.json
+*.zip
