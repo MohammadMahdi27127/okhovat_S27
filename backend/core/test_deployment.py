@@ -44,7 +44,7 @@ class StartupTests(TestCase):
     def test_migration_lock_and_prepare_order(self):
         cursor = MagicMock()
         cursor.fetchone.return_value = (True,)
-        with TemporaryDirectory() as folder, override_settings(MEDIA_ROOT=Path(folder)):
+        with TemporaryDirectory() as folder, override_settings(MEDIA_ROOT=Path(folder), AVATARS_DIR=Path(folder), POSTS_DIR=Path(folder), SKILLS_DIR=Path(folder)):
             with patch("django.db.connection.cursor") as factory, patch("django.db.connection.close"), patch("django.core.management.call_command") as command:
                 factory.return_value.__enter__.return_value = cursor
                 self.prepare.main()
@@ -56,7 +56,7 @@ class StartupTests(TestCase):
     def test_migration_failure_unlocks_and_does_not_continue(self):
         cursor = MagicMock()
         cursor.fetchone.return_value = (True,)
-        with TemporaryDirectory() as folder, override_settings(MEDIA_ROOT=Path(folder)):
+        with TemporaryDirectory() as folder, override_settings(MEDIA_ROOT=Path(folder), AVATARS_DIR=Path(folder), POSTS_DIR=Path(folder), SKILLS_DIR=Path(folder)):
             with patch("django.db.connection.cursor") as factory, patch("django.core.management.call_command", side_effect=RuntimeError("migration failed")) as command:
                 factory.return_value.__enter__.return_value = cursor
                 with self.assertRaises(RuntimeError):

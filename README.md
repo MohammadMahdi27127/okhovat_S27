@@ -159,3 +159,8 @@ python manage.py test core --settings=config.integration_test_settings
 این تست دیتابیس `test_okhovat` را می‌سازد/حذف می‌کند و کش Redis انتخاب‌شده را پاک می‌کند؛ هرگز آن را به سرویس تولید یا Redis مشترک وصل نکن.
 
 انتقال اطلاعات قبلی: [docs/MIGRATION.md](docs/MIGRATION.md). فهرست API: [docs/API.md](docs/API.md).
+
+
+### فضای ذخیره‌سازی دارکوب
+
+برای سه Volume مستقل، مسیرهای `/data/avatars`، `/data/posts` و `/data/skills` را به‌ترتیب به `AVATARS_DIR`، `POSTS_DIR` و `SKILLS_DIR` متصل کنید. جزئیات در `docs/DARKUBE.md` آمده است.

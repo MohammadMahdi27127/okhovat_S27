@@ -41,6 +41,9 @@ ALLOWED_HOSTS=YOUR_DOMAIN
 CSRF_TRUSTED_ORIGINS=https://YOUR_DOMAIN
 DATABASE_URL=postgresql://DB_USER:URL_ENCODED_DB_PASSWORD@DB_PRIVATE_HOST:5432/DB_NAME
 UPLOADS_DIR=/srv/okhovat/private-media
+AVATARS_DIR=/data/avatars
+POSTS_DIR=/data/posts
+SKILLS_DIR=/data/skills
 REDIS_URL=redis://127.0.0.1:6379/0
 TRUST_PROXY_PROTO=False
 TRUSTED_PROXY_COUNT=0
@@ -51,7 +54,10 @@ TRUSTED_PROXY_COUNT=0
 - `CSRF_TRUSTED_ORIGINS`: همان دامنه‌ها با `https://`؛ نه اسلش پایانی و نه مسیر اضافی.
 - `DATABASE_URL`: مشخصات واقعی PostgreSQL. رمز دارای کاراکتر رزروشده باید URL-encode شود. این هاست `127.0.0.1` نیست.
 - `REDIS_URL`: دقیقاً مقدار بالا. خود Dockerfile هم همین مقدار پیش‌فرض را تعیین می‌کند؛ نیازی به ساخت Redis در پنل نیست.
-- `UPLOADS_DIR`: مسیر دیسک دائمی کاربر، مطابق بخش بعد.
+- `UPLOADS_DIR`: مسیر قدیمی برای خواندن فایل‌های بارگذاری‌شده قبل از تفکیک دیسک‌ها.
+- `AVATARS_DIR`: مسیر Volume آواتارها؛ `/data/avatars`.
+- `POSTS_DIR`: مسیر Volume پیوست پست‌ها؛ `/data/posts`.
+- `SKILLS_DIR`: مسیر Volume فایل‌های مهارت و مستند رشد؛ `/data/skills`.
 - `TRUST_PROXY_PROTO`: پس از تأیید اینکه پراکسی دارکوب هدر `X-Forwarded-Proto` را خودش بازنویسی می‌کند، مقدار `True` بگذار. اگر HTTPS در پراکسی terminate شود ولی این گزینه خاموش بماند، ممکن است redirect loop ببینی؛ روش صحیح تنظیم پراکسی است، نه خاموش‌کردن امنیت سایت.
 - `TRUSTED_PROXY_COUNT`: فقط با تأیید تعداد پراکسی‌های مورد اعتماد و پاک‌سازی `X-Forwarded-For` تنظیم شود؛ برای یک پراکسی مورد اعتماد مقدار `1`. صفر پیش‌فرض امن است ولی پشت پراکسی می‌تواند محدودیت IP ورود را بین کاربران مشترک کند.
 
@@ -117,3 +123,32 @@ python manage.py create_member --code YOUR_NUMERIC_CODE --name "نام خودت"
 - ۴۳ فایل فرانت‌اند، مدل‌ها و migrationها با زیپ قبلی بایت‌به‌بایت یکسان‌اند.
 - syntax اسکریپت shell و پیکربندی Supervisor بررسی شد؛ مسیرهای فایل‌سیستم کانتینر برای بررسی syntax Supervisor موقتاً با مسیرهای فضای تست جایگزین شدند.
 - Docker daemon، PostgreSQL و Redis واقعی در محیط آزمون در دسترس نبودند. تست خودکار از دیتابیس/کش ایزوله استفاده کرده است؛ ساخت و اجرای خود Docker image تأیید نشده است.
+
+
+## تفکیک فضای فایل‌ها و پاک‌سازی پیوست پست‌ها
+
+برای نسخه‌های جدید سه Volume دائمی به اپ متصل کنید و هرکدام را در مسیر زیر Mount کنید:
+
+| کاربرد | Mount path | متغیر محیطی |
+|---|---|---|
+| آواتار کاربران | `/data/avatars` | `AVATARS_DIR=/data/avatars` |
+| پیوست پست‌ها | `/data/posts` | `POSTS_DIR=/data/posts` |
+| فایل‌های مهارت/رشد | `/data/skills` | `SKILLS_DIR=/data/skills` |
+
+هر سه Volume باید برای UID/GID برابر `10001` قابل نوشتن باشند. برنامه در Startup هر سه مسیر را ایجاد و قابلیت نوشتن را آزمایش می‌کند. `UPLOADS_DIR=/srv/okhovat/private-media` را فعلاً به‌عنوان مسیر سازگاری نگه دارید تا فایل‌های نسخه‌های قبلی قابل دانلود بمانند؛ پس از انتقال فایل‌های قدیمی و تأیید دانلود، می‌توان آن را حذف کرد.
+
+مدل فایل زمان بارگذاری، اندازه واقعی و میزان کسرشده از سهمیه را ثبت می‌کند. پیوست‌های پست قدیمی‌تر از ۷ روز را می‌توان با دستور زیر آزمایشی بررسی کرد:
+
+```bash
+python manage.py cleanup_post_files --days 7 --dry-run
+```
+
+اجرای واقعی:
+
+```bash
+python manage.py cleanup_post_files --days 7
+```
+
+این دستور فقط فایل فیزیکی پیوست پست را حذف می‌کند، رکورد فایل و سهمیه مصرفی مالک را به‌روزرسانی می‌کند و متن/اطلاعات پست را نگه می‌دارد. پاسخ API برای پستی که رسانه‌اش منقضی شده، `mediaExpired: true` می‌فرستد و URL رسانه منقضی را برنمی‌گرداند.
+
+این فرمان به‌صورت خودکار زمان‌بندی نمی‌شود؛ باید آن را هفتگی از طریق CronJob/زمان‌بند پلتفرم یا یک سرویس زمان‌بندی‌شده اجرا کنید. اجرای دستی یا زمان‌بندی‌شده باید از همان Image و با متغیرهای محیطی اپ استفاده کند.

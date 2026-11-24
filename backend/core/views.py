@@ -24,6 +24,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError, PermissionDenied
 from . import models as m, serializers as s, attendance
+from .storage import storage_dir, file_path, delete_file_and_release_quota
 from .security import CoachOnly, AdminOnly, require_csrf, check_login_rate
 from .assistant import periods, interpret
 from .health import readiness as health
@@ -197,6 +198,14 @@ def post_queryset(user):
 
 def post_output(post, user):
     payload = dict(post.payload)
+    media_url = next((payload.get(k) for k in ("image", "video", "file") if payload.get(k)), None)
+    if media_url and re.fullmatch(r"/api/files/[a-f0-9]{32}/", media_url):
+        media_id = media_url.rsplit("/", 2)[-2]
+        if not m.File.objects.filter(pk=media_id).exists():
+            payload.pop("image", None)
+            payload.pop("video", None)
+            payload.pop("file", None)
+            payload["mediaExpired"] = True
     payload.update(
         id=post.id, authorId=post.actor_id, name=post.actor.name,
         coachPost=post.actor.is_coach, ring=payload.get("ring", post.actor.ring),
@@ -262,9 +271,20 @@ def posts(request):
 def delete_post(request, pid):
     post = get_object_or_404(m.Post, pk=pid)
     media = next((post.payload.get(k) for k in ("image", "video", "file") if post.payload.get(k)), "")
+    file_id = None
+    match = re.fullmatch(r"/api/files/([a-f0-9]{32})/?", media or "")
+    if match:
+        file_id = match.group(1)
     with transaction.atomic():
         m.RemovedPost.objects.get_or_create(post=post, defaults={"moderator": request.user, "media": media})
         audit(request.user, "post_removed", pid)
+    if file_id:
+        # A single uploaded attachment may have been reused by another post.
+        still_referenced = visible_posts().exclude(pk=pid).filter(
+            Q(payload__image=media) | Q(payload__video=media) | Q(payload__file=media)
+        ).exists()
+        if not still_referenced:
+            delete_file_and_release_quota(file_id)
     return Response({"ok": True})
 
 
@@ -376,15 +396,17 @@ def upload(request, purpose):
         raise ValidationError("ابعاد تصویر بیش از حد مجاز است.")
     if len(data) > 10 * 1024 * 1024:
         raise ValidationError("تصویر پردازش‌شده بیش از حد مجاز است.")
-    folder = settings.MEDIA_ROOT
+    folder = storage_dir(purpose)
     folder.mkdir(parents=True, exist_ok=True)
     item = m.File(owner=request.user, purpose=purpose, name=Path(incoming.name).name[:255], mime=mime)
     path = folder / item.id
+    charge = max(len(data), 4096)
+    item.size_bytes = len(data)
+    item.quota_bytes = charge
     try:
         with transaction.atomic():
             m.User.objects.select_for_update().get(pk=request.user.pk)
             usage, _ = m.UploadUsage.objects.get_or_create(actor=request.user)
-            charge = max(len(data), 4096)
             if usage.used + charge > 256 * 1024 * 1024:
                 raise ValidationError("سهمیهٔ فایل این حساب تکمیل شده است.")
             path.write_bytes(data)
@@ -411,7 +433,7 @@ def download(request, fid):
         ).exists()
         if item.owner_id != request.user.pk and not referenced:
             raise PermissionDenied()
-    path = settings.MEDIA_ROOT / item.id
+    path = file_path(item)
     if not path.is_file():
         from django.http import Http404
         raise Http404

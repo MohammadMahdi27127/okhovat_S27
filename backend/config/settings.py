@@ -97,7 +97,12 @@ REST_FRAMEWORK = {
 DATA_UPLOAD_MAX_MEMORY_SIZE = 11 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 100
+# Keep UPLOADS_DIR as a legacy fallback for files uploaded before purpose-specific
+# volumes were introduced. New files are stored in their own persistent volumes.
 MEDIA_ROOT = Path(env("UPLOADS_DIR", default=str(BASE_DIR / "private-media")))
+AVATARS_DIR = Path(env("AVATARS_DIR", default="/data/avatars"))
+POSTS_DIR = Path(env("POSTS_DIR", default="/data/posts"))
+SKILLS_DIR = Path(env("SKILLS_DIR", default="/data/skills"))
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 FRONTEND_ROOT = BASE_DIR.parent / "frontend" / "dist"

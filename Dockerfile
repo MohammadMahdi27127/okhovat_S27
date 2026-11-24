@@ -28,7 +28,8 @@ COPY --from=frontend-build /build/frontend/dist/ /app/frontend/dist/
 COPY deploy/ /app/deploy/
 RUN chmod 755 /app/deploy/entrypoint.sh \
     && mkdir -p /app/backend/staticfiles /srv/okhovat/private-media \
-    && chown 10001:10001 /app/backend/staticfiles /srv/okhovat/private-media
+       /data/avatars /data/posts /data/skills \
+    && chown -R 10001:10001 /app/backend/staticfiles /srv/okhovat/private-media /data
 
 USER 10001:10001
 EXPOSE 8000

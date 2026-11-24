@@ -163,6 +163,9 @@ class File(models.Model):
     purpose = models.CharField("کاربرد", max_length=12, choices=[("avatar", "آواتار"), ("proof", "مستند رشد"), ("post", "پیوست پست")])
     name = models.CharField("نام فایل", max_length=255)
     mime = models.CharField("نوع محتوا", max_length=100)
+    uploaded_at = models.DateTimeField("زمان بارگذاری", default=timezone.now, db_index=True)
+    size_bytes = models.BigIntegerField("حجم واقعی فایل", default=0)
+    quota_bytes = models.BigIntegerField("حجم محاسبه‌شده در سهمیه", default=0)
     class Meta:
         db_table = "ok_files"
         verbose_name = "فایل"

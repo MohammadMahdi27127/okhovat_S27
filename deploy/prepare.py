@@ -16,13 +16,23 @@ def main():
     from django.core.management import call_command
     from django.db import connection, OperationalError, InterfaceError
 
-    media = Path(settings.MEDIA_ROOT)
-    media.mkdir(parents=True, exist_ok=True)
-    try:
-        with NamedTemporaryFile(prefix=".write-check-", dir=media):
-            pass
-    except OSError:
-        raise SystemExit("UPLOADS_DIR is not writable. Mount a persistent disk writable by UID/GID 10001.")
+    storage_dirs = {
+        "AVATARS_DIR": Path(settings.AVATARS_DIR),
+        "POSTS_DIR": Path(settings.POSTS_DIR),
+        "SKILLS_DIR": Path(settings.SKILLS_DIR),
+        # Legacy directory is retained for downloads of files uploaded before this release.
+        "UPLOADS_DIR (legacy)": Path(settings.MEDIA_ROOT),
+    }
+    for label, directory in storage_dirs.items():
+        directory.mkdir(parents=True, exist_ok=True)
+        try:
+            with NamedTemporaryFile(prefix=".write-check-", dir=directory):
+                pass
+        except OSError:
+            raise SystemExit(
+                f"{label} is not writable: {directory}. "
+                "Mount a persistent disk writable by UID/GID 10001."
+            )
 
     for attempt in range(1, 7):
         try:

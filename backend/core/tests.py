@@ -2,9 +2,10 @@ from datetime import timedelta
 from unittest.mock import patch
 from django.test import TestCase
 from django.core.cache import cache
+from django.core.management import call_command
 from django.utils import timezone
 from rest_framework.test import APIClient
-from .models import User, Growth, Post, Vote, Comment, Inbox, Preference
+from .models import User, Growth, Post, Vote, Comment, Inbox, Preference, File, UploadUsage
 from .hashers import LegacyScryptHasher
 from . import attendance
 
@@ -136,19 +137,51 @@ class ConnectedFlows(TestCase):
         from tempfile import TemporaryDirectory
         from pathlib import Path
         from django.core.files.uploadedfile import SimpleUploadedFile
-        with TemporaryDirectory() as folder, override_settings(MEDIA_ROOT=Path(folder)):
+        with TemporaryDirectory() as folder, override_settings(MEDIA_ROOT=Path(folder), AVATARS_DIR=Path(folder), POSTS_DIR=Path(folder), SKILLS_DIR=Path(folder)):
             self.signin()
             upload = self.client.post("/api/files/upload/proof/",
                                       {"file": SimpleUploadedFile("proof.txt", b"private file")}, format="multipart")
             self.assertEqual(upload.status_code, 200, upload.content)
             url = upload.json()["url"]
             self.assertEqual(self.client.get(url).status_code, 200)
+            stored = File.objects.get(pk=url.split("/")[-2])
+            self.assertEqual(stored.size_bytes, len(b"private file"))
+            self.assertGreaterEqual(stored.quota_bytes, stored.size_bytes)
             self.signin(self.peer)
             self.assertEqual(self.client.get(url).status_code, 403)
             self.signin(self.coach)
             self.assertEqual(self.client.get(url).status_code, 200)
             self.assertEqual(self.client.put("/api/profile/avatar/", [], format="json").status_code, 400)
             self.assertEqual(self.client.put("/api/growth/", [{"bad": "data"}], format="json").status_code, 400)
+
+
+    def test_weekly_post_cleanup_removes_media_and_releases_quota_but_keeps_post(self):
+        from django.test import override_settings
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+        from django.utils import timezone
+        from datetime import timedelta
+        from core.storage import storage_dir
+        with TemporaryDirectory() as folder, override_settings(
+            MEDIA_ROOT=Path(folder), AVATARS_DIR=Path(folder) / "avatars",
+            POSTS_DIR=Path(folder) / "posts", SKILLS_DIR=Path(folder) / "skills",
+        ):
+            owner = self.member
+            post_file = File.objects.create(
+                owner=owner, purpose="post", name="old.jpg", mime="image/jpeg",
+                uploaded_at=timezone.now() - timedelta(days=8), size_bytes=5000, quota_bytes=5000,
+            )
+            target = storage_dir("post") / post_file.id
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(b"x" * 5000)
+            UploadUsage.objects.create(actor=owner, used=5000)
+            post = Post.objects.create(actor=owner, payload={"text": "متن باقی بماند", "image": f"/api/files/{post_file.id}/"})
+            call_command("cleanup_post_files", days=7, verbosity=0)
+            self.assertFalse(File.objects.filter(pk=post_file.pk).exists())
+            self.assertFalse(target.exists())
+            self.assertEqual(UploadUsage.objects.get(actor=owner).used, 0)
+            post.refresh_from_db()
+            self.assertEqual(post.payload["text"], "متن باقی بماند")
 
     def test_last_admin_and_immediate_role_change(self):
         self.signin(self.admin)
