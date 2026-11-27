@@ -104,7 +104,7 @@ export function TitleList({ kind, team, close }: { kind: string; team: string; c
     all.forEach(r => { counts[r.actor_code] = (counts[r.actor_code] || 0) + 1; });
     setHistory(counts);
   };
-  useEffect(() => { load().catch(e => toast((e as Error).message)); }, []);
+  useEffect(() => { if (user) load().catch(e => toast((e as Error).message)); }, [user]);
   const act = (fn: () => Promise<unknown>) => fn().then(load).catch(e => toast((e as Error).message));
   const label = CARD_LABEL[Object.keys(KIND_BY_CARD).find(k => KIND_BY_CARD[k] === kind) || ''] || 'لیست';
   if (!user) return <Modal title="لیست هفته" close={close}><p>برای مشاهدهٔ این لیست وارد حساب خود شوید.</p></Modal>;

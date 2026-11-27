@@ -227,18 +227,32 @@ def add_title(request):
         jpeg_bytes = make_wanted_poster(avatar_path, actor.name)
         from .models import identifier
         fid = identifier()
+        charge = max(len(jpeg_bytes), 4096)
         dest = storage_dir("landing") / fid
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(jpeg_bytes)
-        poster_file = m.File.objects.create(
-            id=fid,
-            owner=request.user,
-            purpose="landing",
-            name=f"wanted-{actor.code}.jpg",
-            mime="image/jpeg",
-            size_bytes=len(jpeg_bytes),
-            quota_bytes=len(jpeg_bytes),
-        )
+        try:
+            with transaction.atomic():
+                # Charge the generated poster to the registrant's quota so that
+                # remove_title releasing the same amount stays balanced.
+                m.User.objects.select_for_update().get(pk=request.user.pk)
+                usage, _ = m.UploadUsage.objects.get_or_create(actor=request.user)
+                if usage.used + charge > 256 * 1024 * 1024:
+                    raise ValidationError("سهمیهٔ فایل این حساب تکمیل شده است.")
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_bytes(jpeg_bytes)
+                poster_file = m.File.objects.create(
+                    id=fid,
+                    owner=request.user,
+                    purpose="landing",
+                    name=f"wanted-{actor.code}.jpg",
+                    mime="image/jpeg",
+                    size_bytes=len(jpeg_bytes),
+                    quota_bytes=charge,
+                )
+                usage.used += charge
+                usage.save(update_fields=["used"])
+        except Exception:
+            dest.unlink(missing_ok=True)
+            raise
 
     row = m.MemberTitle.objects.create(
         actor=actor,

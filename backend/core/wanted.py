@@ -53,19 +53,25 @@ def make_wanted_poster(avatar_path: Path | None, member_name: str = "") -> bytes
 
     template.paste(avatar, (FRAME_LEFT, FRAME_TOP))
 
-    # Optional name under the frame (simple, no fancy font required)
+    # Optional name under the frame. The runtime image ships no TrueType font and
+    # the default bitmap font cannot encode Persian glyphs, so a missing font must
+    # skip the name rather than abort poster generation. The member's name is shown
+    # in the title list anyway.
+    font = None
     if member_name:
-        draw = ImageDraw.Draw(template)
         try:
             font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 36)
         except Exception:
-            font = ImageFont.load_default()
-        # rough centering
-        bbox = draw.textbbox((0, 0), member_name, font=font)
-        text_w = bbox[2] - bbox[0]
-        x = (template.width - text_w) // 2
-        y = FRAME_BOTTOM + 20
-        draw.text((x, y), member_name, fill=(40, 20, 10), font=font)
+            font = None
+    if font is not None:
+        draw = ImageDraw.Draw(template)
+        try:
+            bbox = draw.textbbox((0, 0), member_name, font=font)
+            text_w = bbox[2] - bbox[0]
+            x = (template.width - text_w) // 2
+            draw.text((x, FRAME_BOTTOM + 20), member_name, fill=(40, 20, 10), font=font)
+        except Exception:
+            pass
 
     buffer = BytesIO()
     template.save(buffer, format="JPEG", quality=88, optimize=True)
