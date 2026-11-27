@@ -235,6 +235,7 @@ def posts(request):
         kind = request.query_params.get("type", "همه")
         if kind != "همه":
             rows = rows.filter(payload__type=kind)
+        rows = rows.order_by("-created", "-id")
         batch = list(rows[(page - 1) * 30:page * 30 + 1])
         return Response({"results": [post_output(p, request.user) for p in batch[:30]], "more": len(batch) > 30})
     data = validated(s.PostInput, request)
